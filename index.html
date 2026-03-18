@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SR24+ AI Travel Guide</title>
+    <meta name="description" content="SR24+ AI Travel Guide — Upload any location image, get AI-powered travel plans in your language.">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface-2: #1a1a26;
+            --border: #2a2a3a;
+            --cyan: #22d3ee;
+            --violet: #a78bfa;
+            --pink: #f472b6;
+            --green: #34d399;
+            --text: #e2e8f0;
+            --text-dim: #64748b;
+            --glow-cyan: rgba(34, 211, 238, 0.4);
+            --glow-violet: rgba(167, 139, 250, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ─── Animated Circuit Lines Background ─── */
+        canvas#circuitCanvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        /* ─── Navbar ─── */
+        .navbar {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 40px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 900; font-size: 1.4rem;
+        }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            border-radius: 8px;
+            display: grid; place-items: center;
+            font-size: 1rem;
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { box-shadow: 0 0 8px var(--glow-cyan); }
+            50% { box-shadow: 0 0 20px var(--glow-violet), 0 0 40px var(--glow-cyan); }
+        }
+
+        .logo span:first-of-type { color: var(--cyan); }
+        .logo span:nth-of-type(2) { color: var(--violet); }
+
+        .nav-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--green);
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ─── Main Layout ─── */
+        .main {
+            position: relative; z-index: 1;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        /* ─── Hero Section ─── */
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+            background: var(--surface);
+        }
+
+        .hero-badge .dot {
+            width: 5px; height: 5px;
+            background: var(--green);
+            border-radius: 50%;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 .grad {
+            background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: textShimmer 4s linear infinite;
+        }
+
+        @keyframes textShimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .hero p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            max-width: 560px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ─── Cards ─── */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .panel:hover { border-color: rgba(34, 211, 238, 0.3); }
+
+        .panel::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .panel:hover::before { opacity: 1; }
+
+        .panel-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .panel-label::before {
+            content: '';
+            width: 8px; height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .label-upload::before { background: var(--cyan); }
+        .label-config::before { background: var(--violet); }
+        .label-result::before { background: var(--green); }
+
+        /* ─── Upload Area ─── */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: var(--surface-2);
+            min-height: 220px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--cyan);
+            background: rgba(34, 211, 238, 0.03);
+        }
+
+        .upload-zone input[type="file"] { display: none; }
+
+        .upload-icon-wrap {
+            width: 56px; height: 56px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(34,211,238,0.15), rgba(167,139,250,0.15));
+            display: grid; place-items: center;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+
+        .upload-hint {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .upload-hint strong { color: var(--cyan); cursor: pointer; }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        /* ─── Scan Line Animation ─── */
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .scanning .scan-line {
+            opacity: 1;
+            animation: sweep 1.8s ease-in-out infinite;
+        }
+
+        @keyframes sweep {
+            0% { top: 0; }
+            50% { top: calc(100% - 3px); }
+            100% { top: 0; }
+        }
+
+        /* ─── Config Grid ─── */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .field label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .field input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .field input::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+        .field input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+        }
+
+        /* ─── Submit Button ─── */
+        .submit-btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            color: var(--bg);
+            background: linear-gradient(90deg, var(--cyan), var(--violet));
+            background-size: 200% auto;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:hover {
+            background-position: right center;
+            box-shadow: 0 4px 24px var(--glow-cyan);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* ─── Loader ─── */
+        .loader-bar {
+            display: none;
+            width: 100%;
+            height: 3px;
+            background: var(--surface-2);
+            border-radius: 2px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+
+        .loader-bar.active { display: block; }
+
+        .loader-bar::after {
+            content: '';
+            display: block;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--violet));
+            border-radius: 2px;
+            animation: loading 1s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+        }
+
+        .loader-text {
+            display: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .loader-text.active { display: block; }
+
+        /* Typing dots animation for loader */
+        .typing-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+
+        /* ─── Result Panel ─── */
+        .result-panel {
+            display: none;
+            animation: slideUp 0.5s ease forwards;
+        }
+
+        .result-panel.visible { display: block; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-body {
+            background: var(--surface-2);
+            border-radius: 10px;
+            padding: 28px;
+            line-height: 1.75;
+            color: #cbd5e1;
+            font-size: 0.95rem;
+        }
+
+        .result-body h1 { font-size: 1.6rem; color: var(--cyan); margin: 24px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .result-body h2 { font-size: 1.3rem; color: var(--violet); margin: 20px 0 10px; }
+        .result-body h3 { font-size: 1.1rem; color: var(--pink); margin: 16px 0 8px; }
+        .result-body ul, .result-body ol { padding-left: 22px; margin-bottom: 12px; }
+        .result-body li { margin-bottom: 6px; }
+        .result-body strong { color: #f1f5f9; }
+        .result-body p { margin-bottom: 12px; }
+        .result-body code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+        .result-body blockquote { border-left: 3px solid var(--violet); padding-left: 16px; color: var(--text-dim); margin: 12px 0; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 640px) {
+            .navbar { padding: 12px 16px; }
+            .main { padding: 24px 16px 60px; }
+            .panel { padding: 20px; }
+            .upload-zone { padding: 32px 16px; min-height: 180px; }
+            .config-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Particle cursor trail ─── */
+        .particle {
+            position: fixed;
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            animation: particleFade 0.6s ease forwards;
+        }
+
+        @keyframes particleFade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="circuitCanvas"></canvas>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">✈</div>
+            <span>SR24+</span>
+            <span>AI Travel Guide</span>
+        </div>
+        <div class="nav-status">
+            <div class="status-dot"></div>
+            SYSTEM ONLINE
+        </div>
+    </nav>
+
+    <main class="main">
+
+        <!-- Hero -->
+        <section class="hero">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                Powered by Azure Vision & Translator
+            </div>
+            <h1>
+                Explore anywhere.<br>
+                <span class="grad">In your language.</span>
+            </h1>
+            <p>Upload a photo of any landmark or place. Azure Vision identifies the location, Translator converts everything into your language, and you get a personalized travel plan — just like a human guide.</p>
+        </section>
+
+        <form id="travelForm">
+
+            <!-- Upload Panel -->
+            <div class="panel">
+                <div class="panel-label label-upload">Image Upload</div>
+                <div class="upload-zone" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                    <div class="scan-line"></div>
+                    <input type="file" id="imageInput" accept="image/*" required>
+                    <div id="uploadPlaceholder">
+                        <div class="upload-icon-wrap">📸</div>
+                        <div class="upload-hint"><strong>Click to upload</strong> or drag & drop</div>
+                    </div>
+                    <img id="imagePreview" class="preview-img" alt="Preview">
+                </div>
+            </div>
+
+            <!-- Vision API Config -->
+            <div class="panel">
+                <div class="panel-label label-config">Azure Computer Vision</div>
+                <div class="config-grid">
+                    <div class="field">
+                        <label>Vision Endpoint</label>
+                        <input type="url" id="visionEndpoint" placeholder="https://your-vision.cognitiveservices.azure.com" required>
+                    </div>
+                    <div class="field">
+                        <label>Vision Key</label>
+                        <input type="password" id="visionKey" placeholder="••••••••••••" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Translator API Config -->
+            <div class="panel">
+                <div class="panel-label label-config">Azure Translator</div>
+                <div class="config-grid">
+                    <div class="field">
+                        <label>Translator Key</label>
+                        <input type="password" id="translatorKey" placeholder="••••••••••••" required>
+                    </div>
+                    <div class="field">
+                        <label>Translator Region</label>
+                        <input type="text" id="translatorRegion" placeholder="e.g. eastus, centralindia" required>
+                    </div>
+                    <div class="field">
+                        <label>Your Language</label>
+                        <input type="text" id="languageInput" value="English" placeholder="Hindi, Spanish, French…" required>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">⚡ Analyze & Generate Travel Guide</button>
+            <div class="loader-bar" id="loaderBar"></div>
+            <div class="loader-text" id="loaderText">
+                <span class="typing-dots">Processing image with Azure AI</span>
+            </div>
+
+        </form>
+
+        <!-- Result Panel -->
+        <div class="panel result-panel" id="resultPanel">
+            <div class="panel-label label-result">AI Travel Plan</div>
+            <div class="result-body" id="resultContent"></div>
+        </div>
+
+    </main>
+
+    <script>
+        // ─── Circuit Board Background Animation ───
+        const canvas = document.getElementById('circuitCanvas');
+        const ctx = canvas.getContext('2d');
+        let nodes = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function initNodes() {
+            nodes = [];
+            const count = Math.floor((canvas.width * canvas.height) / 18000);
+            for (let i = 0; i < count; i++) {
+                nodes.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: (Math.random() - 0.5) * 0.4,
+                    r: Math.random() * 1.5 + 0.5,
+                });
+            }
+        }
+        initNodes();
+
+        function drawCircuit() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const maxDist = 120;
+            for (let i = 0; i < nodes.length; i++) {
+                const a = nodes[i];
+                a.x += a.vx; a.y += a.vy;
+                if (a.x < 0 || a.x > canvas.width) a.vx *= -1;
+                if (a.y < 0 || a.y > canvas.height) a.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(34,211,238,0.5)';
+                ctx.fill();
+
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const b = nodes[j];
+                    const dx = a.x - b.x, dy = a.y - b.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < maxDist) {
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.strokeStyle = `rgba(167,139,250,${1 - dist / maxDist})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(drawCircuit);
+        }
+        drawCircuit();
+
+        // ─── Cursor Particle Trail ───
+        const colors = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399'];
+        document.addEventListener('mousemove', (e) => {
+            if (Math.random() > 0.6) return;
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = e.clientX + 'px';
+            p.style.top = e.clientY + 'px';
+            p.style.background = colors[Math.floor(Math.random() * colors.length)];
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        });
+
+        // ─── Upload Logic ───
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('imageInput');
+        const imgPreview = document.getElementById('imagePreview');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const form = document.getElementById('travelForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loaderBar = document.getElementById('loaderBar');
+        const loaderText = document.getElementById('loaderText');
+        const resultPanel = document.getElementById('resultPanel');
+        const resultContent = document.getElementById('resultContent');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev =>
+            uploadArea.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false)
+        );
+        ['dragenter', 'dragover'].forEach(ev =>
+            uploadArea.addEventListener(ev, () => uploadArea.classList.add('dragover'), false)
+        );
+        ['dragleave', 'drop'].forEach(ev =>
+            uploadArea.addEventListener(ev, () => uploadArea.classList.remove('dragover'), false)
+        );
+        uploadArea.addEventListener('drop', e => {
+            fileInput.files = e.dataTransfer.files;
+            showPreview(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', function () { showPreview(this.files); });
+
+        function showPreview(files) {
+            if (files && files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    imgPreview.src = e.target.result;
+                    imgPreview.style.display = 'block';
+                    uploadPlaceholder.style.display = 'none';
+                };
+                reader.readAsDataURL(files[0]);
+            }
+        }
+
+        // ─── Form Submit ───
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput.files[0]) { alert('Please upload an image.'); return; }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('language', document.getElementById('languageInput').value);
+            formData.append('vision_endpoint', document.getElementById('visionEndpoint').value);
+            formData.append('vision_key', document.getElementById('visionKey').value);
+            formData.append('translator_key', document.getElementById('translatorKey').value);
+            formData.append('translator_region', document.getElementById('translatorRegion').value);
+
+            // Loading state
+            uploadArea.classList.add('scanning');
+            submitBtn.textContent = '⏳ Analyzing…';
+            submitBtn.disabled = true;
+            loaderBar.classList.add('active');
+            loaderText.classList.add('active');
+            resultPanel.classList.remove('visible');
+
+            try {
+                const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    resultContent.innerHTML = marked.parse(data.result);
+                    resultPanel.classList.add('visible');
+                    setTimeout(() => resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Connection error. Is the backend running?');
+                console.error(err);
+            } finally {
+                uploadArea.classList.remove('scanning');
+                submitBtn.textContent = '⚡ Analyze & Generate Travel Guide';
+                submitBtn.disabled = false;
+                loaderBar.classList.remove('active');
+                loaderText.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
