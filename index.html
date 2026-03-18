@@ -34,7 +34,6 @@
             overflow-x: hidden;
         }
 
-        /* ─── Animated Circuit Lines Background ─── */
         canvas#circuitCanvas {
             position: fixed;
             top: 0; left: 0;
@@ -44,7 +43,6 @@
             opacity: 0.3;
         }
 
-        /* ─── Navbar ─── */
         .navbar {
             position: sticky; top: 0; z-index: 100;
             display: flex; align-items: center; justify-content: space-between;
@@ -95,7 +93,6 @@
             50% { opacity: 0.3; }
         }
 
-        /* ─── Main Layout ─── */
         .main {
             position: relative; z-index: 1;
             max-width: 960px;
@@ -103,7 +100,6 @@
             padding: 40px 24px 80px;
         }
 
-        /* ─── Hero Section ─── */
         .hero {
             text-align: center;
             margin-bottom: 48px;
@@ -155,7 +151,6 @@
             line-height: 1.6;
         }
 
-        /* ─── Cards ─── */
         .panel {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -201,7 +196,6 @@
         .label-config::before { background: var(--violet); }
         .label-result::before { background: var(--green); }
 
-        /* ─── Upload Area ─── */
         .upload-zone {
             border: 2px dashed var(--border);
             border-radius: 12px;
@@ -247,7 +241,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
 
-        /* ─── Scan Line Animation ─── */
         .scan-line {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 3px;
@@ -267,7 +260,6 @@
             100% { top: 0; }
         }
 
-        /* ─── Config Grid ─── */
         .config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -304,7 +296,6 @@
             box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
         }
 
-        /* ─── Submit Button ─── */
         .submit-btn {
             width: 100%;
             margin-top: 24px;
@@ -334,7 +325,6 @@
             box-shadow: none;
         }
 
-        /* ─── Loader ─── */
         .loader-bar {
             display: none;
             width: 100%;
@@ -373,7 +363,6 @@
 
         .loader-text.active { display: block; }
 
-        /* Typing dots animation for loader */
         .typing-dots::after {
             content: '';
             animation: dots 1.5s steps(4, end) infinite;
@@ -386,7 +375,6 @@
             100% { content: ''; }
         }
 
-        /* ─── Result Panel ─── */
         .result-panel {
             display: none;
             animation: slideUp 0.5s ease forwards;
@@ -418,7 +406,6 @@
         .result-body code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
         .result-body blockquote { border-left: 3px solid var(--violet); padding-left: 16px; color: var(--text-dim); margin: 12px 0; }
 
-        /* ─── Responsive ─── */
         @media (max-width: 640px) {
             .navbar { padding: 12px 16px; }
             .main { padding: 24px 16px 60px; }
@@ -427,7 +414,6 @@
             .config-grid { grid-template-columns: 1fr; }
         }
 
-        /* ─── Particle cursor trail ─── */
         .particle {
             position: fixed;
             width: 4px; height: 4px;
@@ -447,7 +433,6 @@
 
     <canvas id="circuitCanvas"></canvas>
 
-    <!-- Navbar -->
     <nav class="navbar">
         <div class="logo">
             <div class="logo-icon">✈</div>
@@ -462,7 +447,6 @@
 
     <main class="main">
 
-        <!-- Hero -->
         <section class="hero">
             <div class="hero-badge">
                 <span class="dot"></span>
@@ -542,33 +526,128 @@
     </main>
 
     <script>
-        // ─── Circuit Board Background Animation ───
+        // ─── Language Map ───
+        const LANG_MAP = {
+            "english":"en","hindi":"hi","spanish":"es","french":"fr","german":"de",
+            "italian":"it","portuguese":"pt","russian":"ru","japanese":"ja","korean":"ko",
+            "chinese":"zh-Hans","arabic":"ar","turkish":"tr","dutch":"nl","polish":"pl",
+            "thai":"th","vietnamese":"vi","indonesian":"id","malay":"ms","tamil":"ta",
+            "telugu":"te","bengali":"bn","marathi":"mr","gujarati":"gu","kannada":"kn",
+            "malayalam":"ml","punjabi":"pa","urdu":"ur","swedish":"sv","norwegian":"nb",
+            "danish":"da","finnish":"fi","greek":"el","czech":"cs","romanian":"ro",
+            "hungarian":"hu","ukrainian":"uk","hebrew":"he","persian":"fa","swahili":"sw",
+            "nepali":"ne","sinhala":"si","burmese":"my","khmer":"km","filipino":"fil",
+            "catalan":"ca","serbian":"sr-Cyrl","croatian":"hr","slovak":"sk",
+            "slovenian":"sl","bulgarian":"bg","estonian":"et","latvian":"lv","lithuanian":"lt"
+        };
+
+        function getLangCode(name) {
+            const code = LANG_MAP[name.trim().toLowerCase()];
+            if (code) return code;
+            if (name.trim().length <= 10) return name.trim().toLowerCase();
+            return "en";
+        }
+
+        // ─── Build Travel Guide ───
+        function buildGuide(visionData) {
+            const captions = visionData.description?.captions || [];
+            const description = captions.length ? captions[0].text : "an interesting location";
+            const confidence = captions.length ? (captions[0].confidence * 100).toFixed(1) : 0;
+            const tags = (visionData.tags || []).filter(t => t.confidence > 0.5).map(t => t.name);
+            const landmarks = [];
+            for (const cat of (visionData.categories || [])) {
+                if (cat.detail && cat.detail.landmarks) {
+                    for (const lm of cat.detail.landmarks) {
+                        if (lm.confidence > 0.3) landmarks.push(lm.name);
+                    }
+                }
+            }
+            const objects = [...new Set((visionData.objects || []).map(o => o.object))];
+            const place = landmarks.length ? landmarks[0] : "the detected location";
+            const extraLM = landmarks.slice(1);
+
+            let g = `# 🌍 Travel Guide: ${place}\n\n`;
+            g += `## 📸 Image Analysis\n`;
+            g += `**What we see:** ${description.charAt(0).toUpperCase() + description.slice(1)} (confidence: ${confidence}%)\n\n`;
+            if (landmarks.length) g += `**Landmark(s) Detected:** ${landmarks.join(', ')}\n\n`;
+            if (tags.length) g += `**Scene Tags:** ${tags.slice(0,12).join(', ')}\n\n`;
+            if (objects.length) g += `**Objects Identified:** ${objects.slice(0,8).join(', ')}\n\n`;
+            g += `---\n\n## ✨ About ${place}\nThis appears to be **${place}**. The image shows ${description}. `;
+            if (tags.length) g += `The scene is characterized by elements such as ${tags.slice(0,5).join(', ')}. `;
+            g += `\n\n---\n\n## 🗺️ Suggested Travel Plan for ${place}\n\n`;
+            const hasNature = tags.some(t => ["outdoor","nature","mountain","sky","tree","water","beach","hill"].includes(t));
+            g += `### Day 1: Arrival & Exploration\n`;
+            g += `- **Morning:** Arrive and check into a nearby hotel. Take some time to rest.\n`;
+            g += `- **Afternoon:** Visit **${place}** and explore the surroundings. ${hasNature ? "Enjoy the natural beauty and take stunning photographs." : "Walk around and soak in the local atmosphere."}\n`;
+            g += `- **Evening:** Try local cuisine at a nearby restaurant. Explore the night scene.\n\n`;
+            g += `### Day 2: Deep Dive & Culture\n`;
+            g += `- **Morning:** Take a guided tour of ${place} to learn its history and significance.\n`;
+            g += extraLM.length ? `- **Afternoon:** Visit nearby attractions: ${extraLM.join(', ')}.\n` : `- **Afternoon:** Explore nearby attractions, museums, and cultural spots.\n`;
+            g += `- **Evening:** Pick up local souvenirs and enjoy a sunset view.\n\n`;
+            g += `### Day 3: Adventure & Departure\n`;
+            g += hasNature ? `- **Morning:** Go for a nature walk, hike, or water activity near ${place}.\n` : `- **Morning:** Revisit your favorite spots or explore hidden gems around ${place}.\n`;
+            g += `- **Afternoon:** Relax, do some last-minute exploring, and prepare to depart.\n`;
+            g += `- **Evening:** Head to the airport/station with wonderful memories!\n\n`;
+            g += `---\n\n## 💡 Travel Tips\n`;
+            g += `- **Best time to visit:** Check the local weather and seasonal events.\n`;
+            g += `- **Getting there:** Look for flights or trains to the nearest city.\n`;
+            g += `- **What to pack:** Comfortable shoes, camera, sunscreen, and a good spirit!\n`;
+            g += `- **Safety:** Always keep your belongings safe and stay aware of your surroundings.\n`;
+            g += `- **Local etiquette:** Respect local customs and traditions.\n`;
+            return g;
+        }
+
+        // ─── Translate Text ───
+        async function translateText(text, langCode, translatorKey, translatorRegion) {
+            if (langCode === "en") return text;
+            const chunks = [];
+            let current = "";
+            for (const line of text.split("\n")) {
+                if (current.length + line.length + 1 > 9000) {
+                    chunks.push(current);
+                    current = line + "\n";
+                } else {
+                    current += line + "\n";
+                }
+            }
+            if (current) chunks.push(current);
+
+            const translated = [];
+            for (const chunk of chunks) {
+                const resp = await fetch(`https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${langCode}`, {
+                    method: "POST",
+                    headers: {
+                        "Ocp-Apim-Subscription-Key": translatorKey,
+                        "Ocp-Apim-Subscription-Region": translatorRegion,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify([{ Text: chunk }])
+                });
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    throw new Error("Translator API error: " + errText);
+                }
+                const data = await resp.json();
+                translated.push(data[0].translations[0].text);
+            }
+            return translated.join("");
+        }
+
+        // ─── Circuit Board Background ───
         const canvas = document.getElementById('circuitCanvas');
         const ctx = canvas.getContext('2d');
         let nodes = [];
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-
         function initNodes() {
             nodes = [];
             const count = Math.floor((canvas.width * canvas.height) / 18000);
             for (let i = 0; i < count; i++) {
-                nodes.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 0.4,
-                    vy: (Math.random() - 0.5) * 0.4,
-                    r: Math.random() * 1.5 + 0.5,
-                });
+                nodes.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4, r: Math.random()*1.5+0.5 });
             }
         }
         initNodes();
-
         function drawCircuit() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const maxDist = 120;
@@ -577,41 +656,24 @@
                 a.x += a.vx; a.y += a.vy;
                 if (a.x < 0 || a.x > canvas.width) a.vx *= -1;
                 if (a.y < 0 || a.y > canvas.height) a.vy *= -1;
-
-                ctx.beginPath();
-                ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(34,211,238,0.5)';
-                ctx.fill();
-
-                for (let j = i + 1; j < nodes.length; j++) {
-                    const b = nodes[j];
-                    const dx = a.x - b.x, dy = a.y - b.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < maxDist) {
-                        ctx.beginPath();
-                        ctx.moveTo(a.x, a.y);
-                        ctx.lineTo(b.x, b.y);
-                        ctx.strokeStyle = `rgba(167,139,250,${1 - dist / maxDist})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                    }
+                ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fillStyle='rgba(34,211,238,0.5)'; ctx.fill();
+                for (let j = i+1; j < nodes.length; j++) {
+                    const b = nodes[j], dx = a.x-b.x, dy = a.y-b.y, dist = Math.sqrt(dx*dx+dy*dy);
+                    if (dist < maxDist) { ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.strokeStyle=`rgba(167,139,250,${1-dist/maxDist})`; ctx.lineWidth=0.5; ctx.stroke(); }
                 }
             }
             requestAnimationFrame(drawCircuit);
         }
         drawCircuit();
 
-        // ─── Cursor Particle Trail ───
-        const colors = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399'];
-        document.addEventListener('mousemove', (e) => {
+        // ─── Cursor Particles ───
+        const colors = ['#22d3ee','#a78bfa','#f472b6','#34d399'];
+        document.addEventListener('mousemove', e => {
             if (Math.random() > 0.6) return;
-            const p = document.createElement('div');
-            p.className = 'particle';
-            p.style.left = e.clientX + 'px';
-            p.style.top = e.clientY + 'px';
-            p.style.background = colors[Math.floor(Math.random() * colors.length)];
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 600);
+            const p = document.createElement('div'); p.className='particle';
+            p.style.left=e.clientX+'px'; p.style.top=e.clientY+'px';
+            p.style.background=colors[Math.floor(Math.random()*colors.length)];
+            document.body.appendChild(p); setTimeout(()=>p.remove(),600);
         });
 
         // ─── Upload Logic ───
@@ -626,45 +688,33 @@
         const resultPanel = document.getElementById('resultPanel');
         const resultContent = document.getElementById('resultContent');
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev =>
-            uploadArea.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false)
-        );
-        ['dragenter', 'dragover'].forEach(ev =>
-            uploadArea.addEventListener(ev, () => uploadArea.classList.add('dragover'), false)
-        );
-        ['dragleave', 'drop'].forEach(ev =>
-            uploadArea.addEventListener(ev, () => uploadArea.classList.remove('dragover'), false)
-        );
-        uploadArea.addEventListener('drop', e => {
-            fileInput.files = e.dataTransfer.files;
-            showPreview(e.dataTransfer.files);
-        });
-        fileInput.addEventListener('change', function () { showPreview(this.files); });
+        ['dragenter','dragover','dragleave','drop'].forEach(ev => uploadArea.addEventListener(ev, e=>{e.preventDefault();e.stopPropagation()},false));
+        ['dragenter','dragover'].forEach(ev => uploadArea.addEventListener(ev, ()=>uploadArea.classList.add('dragover'),false));
+        ['dragleave','drop'].forEach(ev => uploadArea.addEventListener(ev, ()=>uploadArea.classList.remove('dragover'),false));
+        uploadArea.addEventListener('drop', e => { fileInput.files=e.dataTransfer.files; showPreview(e.dataTransfer.files); });
+        fileInput.addEventListener('change', function(){ showPreview(this.files); });
 
         function showPreview(files) {
             if (files && files[0]) {
                 const reader = new FileReader();
-                reader.onload = e => {
-                    imgPreview.src = e.target.result;
-                    imgPreview.style.display = 'block';
-                    uploadPlaceholder.style.display = 'none';
-                };
+                reader.onload = e => { imgPreview.src=e.target.result; imgPreview.style.display='block'; uploadPlaceholder.style.display='none'; };
                 reader.readAsDataURL(files[0]);
             }
         }
 
-        // ─── Form Submit ───
+        // ─── Form Submit — calls Azure APIs directly from browser ───
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!fileInput.files[0]) { alert('Please upload an image.'); return; }
 
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
-            formData.append('language', document.getElementById('languageInput').value);
-            formData.append('vision_endpoint', document.getElementById('visionEndpoint').value);
-            formData.append('vision_key', document.getElementById('visionKey').value);
-            formData.append('translator_key', document.getElementById('translatorKey').value);
-            formData.append('translator_region', document.getElementById('translatorRegion').value);
+            const visionEndpoint = document.getElementById('visionEndpoint').value.replace(/\/+$/, '');
+            const visionKey = document.getElementById('visionKey').value.trim();
+            const translatorKey = document.getElementById('translatorKey').value.trim();
+            const translatorRegion = document.getElementById('translatorRegion').value.trim();
+            const language = document.getElementById('languageInput').value.trim();
+
+            if (!visionEndpoint || !visionKey) { alert('Please provide Vision endpoint and key.'); return; }
+            if (!translatorKey || !translatorRegion) { alert('Please provide Translator key and region.'); return; }
 
             // Loading state
             uploadArea.classList.add('scanning');
@@ -675,17 +725,40 @@
             resultPanel.classList.remove('visible');
 
             try {
-                const res = await fetch('/api/analyze', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.success) {
-                    resultContent.innerHTML = marked.parse(data.result);
-                    resultPanel.classList.add('visible');
-                    setTimeout(() => resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                } else {
-                    alert('Error: ' + data.error);
+                // Read image as ArrayBuffer
+                const imageBuffer = await fileInput.files[0].arrayBuffer();
+
+                // ── Step 1: Azure Computer Vision ──
+                const visionUrl = `${visionEndpoint}/vision/v3.2/analyze?visualFeatures=Description,Tags,Objects,Categories&details=Landmarks&language=en`;
+                const visionResp = await fetch(visionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Ocp-Apim-Subscription-Key': visionKey,
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: imageBuffer
+                });
+
+                if (!visionResp.ok) {
+                    const errText = await visionResp.text();
+                    throw new Error('Vision API error: ' + errText);
                 }
+                const visionData = await visionResp.json();
+
+                // ── Step 2: Build travel guide ──
+                const guideText = buildGuide(visionData);
+
+                // ── Step 3: Translate ──
+                const langCode = getLangCode(language);
+                const finalText = await translateText(guideText, langCode, translatorKey, translatorRegion);
+
+                // ── Show result ──
+                resultContent.innerHTML = marked.parse(finalText);
+                resultPanel.classList.add('visible');
+                setTimeout(() => resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+
             } catch (err) {
-                alert('Connection error. Is the backend running?');
+                alert('Error: ' + err.message);
                 console.error(err);
             } finally {
                 uploadArea.classList.remove('scanning');
